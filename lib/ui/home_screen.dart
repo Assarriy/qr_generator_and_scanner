@@ -81,7 +81,7 @@ class HomeScreen extends StatelessWidget {
                     icon: Icons.send,
                     label: 'Share',
                     color: Colors.greenAccent,
-                    route: '', // TODO
+                    route: '/share', // TODO
                   ),
                   _MenuButton(
                     icon: Icons.print,

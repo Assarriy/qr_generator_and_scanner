@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
+import 'package:qr_generator_and_scanner/main.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -28,6 +29,45 @@ class _QrGeneratorScreenState extends State<QrGeneratorScreen> {
 
   String? _qrData;
   Color _qrColor = Colors.white;
+
+  /// Fungsi terpadu untuk menangani pengambilan gambar dan sharing
+  Future<void> _handleShare({required bool isEmailFriendly}) async {
+    if (_qrData == null || _qrData!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Masukkan teks atau link terlebih dahulu'),
+        ),
+      );
+      return;
+    }
+
+    // Delay kecil untuk memastikan frame UI sudah stabil
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    try {
+      final Uint8List? imageBytes = await _screenshotController.capture(
+        pixelRatio: MediaQuery.of(context).devicePixelRatio,
+      );
+
+      if (imageBytes != null) {
+        final String fileName =
+            'QR_${DateTime.now().millisecondsSinceEpoch}.png';
+
+        // Template pesan sesuai ketentuan
+        final String shareText =
+            'Ini QR Code untuk: ${_qrData ?? 'tidak ada'}\n'
+            'Dibuat menggunakan QR S&G oleh Wibowo Assariy';
+
+        await Share.shareXFiles(
+          [XFile.fromData(imageBytes, name: fileName, mimeType: 'image/png')],
+          subject: isEmailFriendly ? 'QR Code dari QR S&G App' : null,
+          text: shareText,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error sharing: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +109,6 @@ class _QrGeneratorScreenState extends State<QrGeneratorScreen> {
                     ),
                     child: Column(
                       children: [
-                        // QR Display + Input + Controls (ditambahkan di step berikutnya)
                         Screenshot(
                           controller: _screenshotController,
                           child: Container(
@@ -81,13 +120,6 @@ class _QrGeneratorScreenState extends State<QrGeneratorScreen> {
                                 color: Colors.black12,
                                 width: 2,
                               ),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 12,
-                                  offset: Offset(0, 4),
-                                ),
-                              ],
                             ),
                             child: _qrData == null || _qrData!.isEmpty
                                 ? const Padding(
@@ -113,20 +145,23 @@ class _QrGeneratorScreenState extends State<QrGeneratorScreen> {
                         TextField(
                           decoration: InputDecoration(
                             labelText: 'Link atau Teks',
-                            hintText: 'https://example.com atau teks apa saja',
+                            hintText: 'https://example.com',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                             filled: true,
                             fillColor: Colors.grey.shade50,
                           ),
-                          maxLines: 3,
+                          maxLines: 2,
                           onChanged: (value) {
-                            setState(
-                              () => _qrData = value.trim().isEmpty
+                            final trimmedValue = value.trim();
+                            setState(() {
+                              _qrData = trimmedValue.isEmpty
                                   ? null
-                                  : value.trim(),
-                            );
+                                  : trimmedValue;
+                            });
+                            // Simpan ke variabel global agar bisa diakses Share Screen
+                            globalQrData = _qrData;
                           },
                         ),
                         const SizedBox(height: 24),
@@ -142,34 +177,32 @@ class _QrGeneratorScreenState extends State<QrGeneratorScreen> {
                             return GestureDetector(
                               onTap: () => setState(() => _qrColor = color),
                               child: Container(
-                                width: 40,
-                                height: 40,
+                                width: 35,
+                                height: 35,
                                 decoration: BoxDecoration(
                                   color: color,
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: _qrColor == color
                                         ? Colors.black
-                                        : Colors.transparent,
-                                    width: 3,
+                                        : Colors.black12,
+                                    width: 2,
                                   ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 6,
-                                    ),
-                                  ],
                                 ),
                               ),
                             );
                           }).toList(),
                         ),
                         const SizedBox(height: 32),
-                        const Divider(height: 1),
+                        const Divider(),
                         const SizedBox(height: 16),
+
+                        // ROW ACTION BUTTONS
                         Row(
                           children: [
+                            // Tombol Reset
                             Expanded(
+                              flex: 2,
                               child: OutlinedButton(
                                 onPressed: () {
                                   setState(() {
@@ -179,43 +212,66 @@ class _QrGeneratorScreenState extends State<QrGeneratorScreen> {
                                 },
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.red,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                 ),
                                 child: const Text('Reset'),
                               ),
                             ),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 8),
+
+                            // Tombol Share (Umum)
                             Expanded(
+                              flex: 3,
                               child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  if (_qrData == null || _qrData!.isEmpty)
-                                    return;
-
-                                  // Delay kecil untuk render selesai
-                                  await Future.delayed(
-                                    const Duration(milliseconds: 100),
-                                  );
-
-                                  final Uint8List? imageBytes =
-                                      await _screenshotController.capture(
-                                        pixelRatio: MediaQuery.of(
-                                          context,
-                                        ).devicePixelRatio,
-                                      );
-
-                                  if (imageBytes != null) {
-                                    await Share.shareXFiles([
-                                      XFile.fromData(
-                                        imageBytes,
-                                        name: 'qrcode_dateTime.png',
-                                        mimeType: 'image/png',
-                                      ),
-                                    ]);
-                                  }
-                                },
-                                icon: const Icon(Icons.share),
-                                label: const Text('Share QR'),
+                                onPressed: () =>
+                                    _handleShare(isEmailFriendly: false),
+                                icon: const Icon(
+                                  Icons.share,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  'Share',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: primaryColor,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Tombol Send (Email Friendly)
+                            Expanded(
+                              flex: 3,
+                              child: ElevatedButton.icon(
+                                onPressed: () =>
+                                    _handleShare(isEmailFriendly: true),
+                                icon: const Icon(
+                                  Icons.send,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  'Send',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green.shade600,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                 ),
                               ),
                             ),

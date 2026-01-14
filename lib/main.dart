@@ -1,20 +1,21 @@
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/foundation.dart'; // untuk kReleaseMode
 import 'package:flutter/material.dart';
+import 'package:qr_generator_and_scanner/ui/qr_share_screen.dart';
 
 import 'ui/splash_screen.dart';
 import 'ui/home_screen.dart';
 import 'ui/qr_generator_screen.dart';
 import 'ui/qr_scanner_screen.dart';
 
+String? globalQrData;
+
 void main() {
   runApp(
     DevicePreview(
       enabled: !kReleaseMode, // mati otomatis saat build release
       defaultDevice: Devices.ios.iPhone11ProMax,
-      devices: [
-        Devices.ios.iPhone11ProMax,
-      ],
+      devices: [Devices.ios.iPhone11ProMax],
       builder: (context) => const MainApp(),
     ),
   );
@@ -57,6 +58,7 @@ class MainApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/create': (context) => const QrGeneratorScreen(),
         '/scan': (context) => const QrScannerScreen(),
+        '/share': (context) => const ShareScreen(),
       },
     );
   }
