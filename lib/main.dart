@@ -8,6 +8,7 @@ import 'ui/home_screen.dart';
 import 'ui/qr_generator_screen.dart';
 import 'ui/qr_scanner_screen.dart';
 
+
 String? globalQrData;
 
 void main() {
